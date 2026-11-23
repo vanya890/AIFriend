@@ -14,11 +14,11 @@ function getText(message) {
   return message.text || message.caption || (message.photo ? "[photo]" : message.video ? "[video]" : message.document ? "[document]" : "[non-text message]");
 }
 
-async function answerInDiscussion({ chatId, rootMessageId, threadKey, event }) {
+async function answerInDiscussion({ chatId, replyToMessageId, threadKey, event }) {
   const context = buildMemoryContext(state, threadKey);
   const reply = await generateReply({ event, context });
   if (reply === "SKIP") return null;
-  const sent = await sendThreadReply(chatId, rootMessageId, reply);
+  const sent = await sendThreadReply(chatId, replyToMessageId, reply);
   addThreadMessage(state, threadKey, {
     role: "assistant",
     text: reply,
@@ -46,6 +46,7 @@ for (const update of updates) {
       role: "channel_post",
       text: getText(post),
       channel_id: post.chat.id,
+      channel_title: post.chat.title || null,
       channel_post_id: post.message_id,
       created_at: new Date(post.date * 1000).toISOString()
     });
@@ -63,7 +64,7 @@ for (const update of updates) {
       const postText = thread.messages.find(item => item.role === "channel_post")?.text || getText(message);
       await answerInDiscussion({
         chatId: message.chat.id,
-        rootMessageId: message.message_id,
+        replyToMessageId: message.message_id,
         threadKey,
         event: { type: "new_channel_post", channel, post: postText, post_id: origin.message_id }
       });
@@ -72,13 +73,13 @@ for (const update of updates) {
   } else if (message && !message.from?.is_bot && message.reply_to_message) {
     const repliedToBot = message.reply_to_message.from?.is_bot;
     if (repliedToBot) {
-      const thread = Object.entries(state.threads).find(([, value]) =>
+      const match = Object.entries(state.threads).find(([, value]) =>
         value.discussion_chat_id === message.chat.id &&
         (value.root_message_id === message.reply_to_message.message_id ||
          value.messages.some(item => item.telegram_message_id === message.reply_to_message.message_id))
       );
-      if (thread) {
-        const [threadKey, data] = thread;
+      if (match) {
+        const [threadKey] = match;
         addThreadMessage(state, threadKey, {
           role: "user",
           text: getText(message),
@@ -89,7 +90,7 @@ for (const update of updates) {
         });
         await answerInDiscussion({
           chatId: message.chat.id,
-          rootMessageId: data.root_message_id,
+          replyToMessageId: message.message_id,
           threadKey,
           event: { type: "reply_to_agent", text: getText(message), username: message.from.username || null }
         });
@@ -107,5 +108,6 @@ console.log(JSON.stringify({
   received_updates: updates.length,
   next_offset: state.offset,
   known_channels: Object.keys(state.channels).length,
-  known_threads: Object.keys(state.threads).length
+  known_threads: Object.keys(state.threads).length,
+  shared_memory_items: state.memory.recent_activity?.length || 0
 }));
