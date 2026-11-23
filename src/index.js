@@ -19,6 +19,7 @@ function messageText(message) {
 function appendInbox(entry) {
   state.inbox ||= [];
   state.inbox.push(entry);
+  if (state.inbox.length > 10000) state.inbox.splice(0, state.inbox.length - 10000);
 }
 
 for (const update of updates) {
