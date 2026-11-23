@@ -1,5 +1,5 @@
 import { getUpdates } from "./telegram.js";
-import { loadState, saveState, wasProcessed, markProcessed, rememberMessage } from "./memory.js";
+import { loadState, saveState, wasProcessed, markProcessed, rememberMessage, createPrivateMessageEntry } from "./memory.js";
 
 const state = await loadState();
 const updates = await getUpdates(state.offset);
@@ -77,6 +77,17 @@ for (const update of updates) {
         received_at: new Date().toISOString(),
         status: "pending"
       });
+    } else if (message.chat.type === "private") {
+      const chatId = String(message.chat.id);
+      state.private_chats ||= {};
+      state.private_chats[chatId] = {
+        chat_id: message.chat.id,
+        user_id: message.from.id,
+        username: message.from.username || null,
+        display_name: [message.from.first_name, message.from.last_name].filter(Boolean).join(" "),
+        last_seen_at: new Date().toISOString()
+      };
+      appendInbox(createPrivateMessageEntry(message, update.update_id));
     } else if (message.chat.type === "group" || message.chat.type === "supergroup") {
       const replyId = message.reply_to_message?.message_id || null;
       const entry = {
