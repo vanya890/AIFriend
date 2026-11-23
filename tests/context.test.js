@@ -69,7 +69,7 @@ test("records bot replies as assistant messages", async () => {
 });
 
 test("extracts reusable Telegram file IDs without constructing download URLs", () => {
-  assert.deepEqual(getImageReference({ photo: [{ file_id: "small", file_unique_id: "s" }, { file_id: "large", file_unique_id: "l" }] }), {
+  assert.deepEqual(getImageReference({ photo: [{ file_id: "small", file_unique_id: "s", file_size: 100 }, { file_id: "large", file_unique_id: "l", file_size: 900 }] }), {
     file_id: "large",
     file_unique_id: "l",
     media_type: "photo",
