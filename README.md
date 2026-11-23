@@ -30,7 +30,9 @@ Telegram ↔ ChatGPT bridge. **No OpenAI API and no model runs inside GitHub Act
 
 ## Data
 
-- `data/state.json`: shared state, channels, posts, inbox, and long-term memory.
+- `data/state.json`: collector-owned Telegram offset, channels, post histories, and append-only inbox (last 10,000 events).
+- `data/processed.json`: ChatGPT-owned ledger of processed Telegram update IDs.
+- `data/memory.json`: ChatGPT-owned shared long-term memory.
 
 ## ChatGPT command bridge
 
@@ -59,7 +61,7 @@ For each scheduled run, the ChatGPT task should:
 2. Process pending `inbox` events in chronological order, using the full matching post/thread history and shared `memory`.
 3. Avoid replying to the bot's own messages, duplicates, spam, and messages that do not merit a response.
 4. For each reply, create an Issue using the command format above.
-5. Update the relevant inbox entries to `processed` and maintain concise shared memory in `data/state.json`.
-6. Preserve message IDs, channel IDs, discussion group IDs, and offsets. Never overwrite newer state with an older snapshot.
+5. Record processed update IDs in `data/processed.json` and maintain concise shared memory in `data/memory.json`.
+6. Do not modify `data/state.json`: it is collector-owned and can be updated concurrently. Never overwrite collector state or its Telegram offset.
 
 The scheduled task is the reasoning layer. GitHub Actions only collects Telegram updates and delivers ChatGPT-authored messages.
