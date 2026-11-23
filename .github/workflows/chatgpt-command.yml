@@ -1,0 +1,72 @@
+name: ChatGPT Telegram Command Bridge
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  execute:
+    if: startsWith(github.event.issue.title, '[aifriend]') && github.event.issue.user.login == 'vanya890'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Validate and execute Telegram command
+        uses: actions/github-script@v7
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const token = process.env.TELEGRAM_BOT_TOKEN;
+            if (!token) throw new Error('Missing TELEGRAM_BOT_TOKEN secret');
+
+            let command;
+            try {
+              command = JSON.parse(issue.body || '');
+            } catch {
+              throw new Error('Issue body must contain one JSON object');
+            }
+
+            if (!command || typeof command !== 'object' || Array.isArray(command)) {
+              throw new Error('Command must be a JSON object');
+            }
+            if (command.action !== 'send_message') {
+              throw new Error('Only send_message is allowed');
+            }
+            if (!Number.isSafeInteger(Number(command.chat_id))) {
+              throw new Error('chat_id must be a numeric Telegram chat ID');
+            }
+            if (typeof command.text !== 'string' || !command.text.trim() || command.text.length > 4096) {
+              throw new Error('text must contain 1..4096 characters');
+            }
+            if (command.reply_to_message_id != null && !Number.isSafeInteger(Number(command.reply_to_message_id))) {
+              throw new Error('reply_to_message_id must be numeric');
+            }
+
+            const payload = { chat_id: Number(command.chat_id), text: command.text };
+            if (command.reply_to_message_id != null) {
+              payload.reply_parameters = {
+                message_id: Number(command.reply_to_message_id),
+                allow_sending_without_reply: false
+              };
+            }
+
+            const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+            const result = await response.json();
+            if (!response.ok || !result.ok) {
+              throw new Error(`Telegram sendMessage failed: ${result.description || response.status}`);
+            }
+
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: issue.number,
+              body: `Telegram message sent successfully. Chat ID: ${payload.chat_id}; message ID: ${result.result.message_id}.`
+            });
