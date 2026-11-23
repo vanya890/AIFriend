@@ -12,14 +12,32 @@ export function emptyState() {
     channels: {},
     posts: {},
     discussions: {},
+    inbox: [],
     memory: { summary: "", facts: [], updated_at: null },
     processed_updates: []
   };
 }
 
+export function normalizeState(raw = {}) {
+  const base = emptyState();
+  return {
+    ...base,
+    ...raw,
+    channels: raw.channels && typeof raw.channels === "object" ? raw.channels : {},
+    posts: raw.posts && typeof raw.posts === "object"
+      ? raw.posts
+      : raw.threads && typeof raw.threads === "object" ? raw.threads : {},
+    discussions: raw.discussions && typeof raw.discussions === "object" ? raw.discussions : {},
+    inbox: Array.isArray(raw.inbox) ? raw.inbox : [],
+    memory: { ...base.memory, ...(raw.memory || {}) },
+    processed_updates: Array.isArray(raw.processed_updates) ? raw.processed_updates : [],
+    offset: Number.isSafeInteger(raw.offset) && raw.offset >= 0 ? raw.offset : 0
+  };
+}
+
 export async function loadState() {
   try {
-    return { ...emptyState(), ...JSON.parse(await fs.readFile(STATE_PATH, "utf8")) };
+    return normalizeState(JSON.parse(await fs.readFile(STATE_PATH, "utf8")));
   } catch (error) {
     if (error.code !== "ENOENT") throw error;
     return emptyState();
