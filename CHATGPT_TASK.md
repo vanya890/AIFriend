@@ -37,7 +37,7 @@ Bot replies are appended automatically by the command bridge only after Telegram
 1. Select public inbox events with `status: "pending"` whose `update_id` is not in `processed.json.update_ids`.
 2. Also select pending events from every private context file as described above. These include private-chat messages and linked discussion-group messages.
 3. For channel posts, load matching post history from `state.posts`, then read the corresponding channel chat context file. Use channel title, post text, date, discussion context, and recent messages.
-4. For `private_message`, the reply destination is exactly that event's numeric `chat_id`. Never route a private reply to a channel or group.
+4. For `private_message`, the reply destination is exactly that event's numeric `chat_id`. For `discussion_message`, use the event's `chat_id` (the linked discussion group) and reply to its `reply_to_message_id` when appropriate. Treat `discussion_post_link` as thread-root context, not as a user message requiring a reply; its `forward_origin.discussion_root_id` identifies the root message. Never route a private reply to a channel or group.
 5. Do not reply to the bot's own messages, duplicates, spam, or events that do not merit a response. Do not invent missing context.
 6. Keep each event isolated: do not mix private messages, channels, or unrelated discussion threads.
 7. After handling an event, add its `update_id` to `processed.json.update_ids`. The private pending queue itself is append-only/bounded and does not need a status mutation.
