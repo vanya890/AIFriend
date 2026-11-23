@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "offset": 0,
+  "channels": {},
+  "threads": {},
+  "memory": {
+    "summary": "",
+    "facts": []
+  },
+  "processed_updates": []
+}
