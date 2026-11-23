@@ -3,7 +3,7 @@ import path from "node:path";
 
 const STATE_PATH = process.env.STATE_PATH || "data/state.json";
 const MAX_PROCESSED = 10000;
-const MAX_MESSAGES = 10000;
+const MAX_MESSAGES_PER_POST = 100;
 
 export function emptyState() {
   return {
@@ -47,6 +47,6 @@ export function markProcessed(state, id) {
 export function rememberMessage(state, key, message) {
   const thread = state.posts[key] ||= { messages: [], discussion_chat_id: null, discussion_root_id: null };
   thread.messages.push(message);
-  if (thread.messages.length > MAX_MESSAGES) thread.messages.splice(0, thread.messages.length - MAX_MESSAGES);
+  if (thread.messages.length > MAX_MESSAGES_PER_POST) thread.messages.splice(0, thread.messages.length - MAX_MESSAGES_PER_POST);
   return thread;
 }
