@@ -32,7 +32,15 @@ async function recordIncoming(message, updateId, role, type, options = {}) {
     type,
     update_id: updateId,
     message_id: message.message_id,
+    chat_type: message.chat.type,
     reply_to_message_id: message.reply_to_message?.message_id || null,
+    ...(message.is_automatic_forward && message.forward_origin?.type === "channel" ? {
+      forward_origin: {
+        channel_id: message.forward_origin.chat.id,
+        channel_message_id: message.forward_origin.message_id,
+        discussion_root_id: message.message_id
+      }
+    } : {}),
     sender: {
       user_id: message.from?.id || null,
       username: message.from?.username || null,
