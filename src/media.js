@@ -109,7 +109,8 @@ export async function saveTelegramImage(message, chat, options = {}) {
           return {
             status: "available",
             path: path.basename(target),
-            artifact_name: `telegram-media-${process.env.GITHUB_RUN_ID || "local"}`,\n            artifact_run_id: process.env.GITHUB_RUN_ID || null,
+            artifact_name: `telegram-media-${process.env.GITHUB_RUN_ID || "local"}`,
+            artifact_run_id: process.env.GITHUB_RUN_ID || null,
             mime_type: format.mime_type,
             size: existing.size,
             file_unique_id: selected.file_unique_id
@@ -125,7 +126,8 @@ export async function saveTelegramImage(message, chat, options = {}) {
       return {
         status: "available",
         path: path.basename(target),
-        artifact_name: `telegram-media-${process.env.GITHUB_RUN_ID || "local"}`,\n        artifact_run_id: process.env.GITHUB_RUN_ID || null,
+        artifact_name: `telegram-media-${process.env.GITHUB_RUN_ID || "local"}`,
+        artifact_run_id: process.env.GITHUB_RUN_ID || null,
         mime_type: format.mime_type,
         size: bytes.length,
         file_unique_id: selected.file_unique_id
