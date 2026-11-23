@@ -37,7 +37,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: npm start
 
-      - name: Persist collector state
+      - name: Upload temporary Telegram images\n        if: always()\n        uses: actions/upload-artifact@v4\n        with:\n          name: telegram-media-${{ github.run_id }}\n          path: /tmp/aifriend-media/\n          if-no-files-found: ignore\n          retention-days: 1\n\n      - name: Persist collector state
         run: |
           if git diff --quiet -- data/state.json; then
             echo "No new Telegram updates."
