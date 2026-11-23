@@ -12,6 +12,7 @@ export function emptyState() {
     channels: {},
     posts: {},
     discussions: {},
+    private_chats: {},
     inbox: [],
     memory: { summary: "", facts: [], updated_at: null },
     processed_updates: []
@@ -28,6 +29,7 @@ export function normalizeState(raw = {}) {
       ? raw.posts
       : raw.threads && typeof raw.threads === "object" ? raw.threads : {},
     discussions: raw.discussions && typeof raw.discussions === "object" ? raw.discussions : {},
+    private_chats: raw.private_chats && typeof raw.private_chats === "object" ? raw.private_chats : {},
     inbox: Array.isArray(raw.inbox) ? raw.inbox : [],
     memory: { ...base.memory, ...(raw.memory || {}) },
     processed_updates: Array.isArray(raw.processed_updates) ? raw.processed_updates : [],
@@ -60,6 +62,29 @@ export function markProcessed(state, id) {
   if (state.processed_updates.length > MAX_PROCESSED) {
     state.processed_updates = state.processed_updates.slice(-MAX_PROCESSED);
   }
+}
+
+export function createPrivateMessageEntry(message, updateId, receivedAt = new Date().toISOString()) {
+  const from = message.from || {};
+  const text = message.text || message.caption || (
+    message.photo ? "[photo]" :
+    message.video ? "[video]" :
+    message.document ? "[document]" :
+    "[non-text message]"
+  );
+  return {
+    update_id: updateId,
+    type: "private_message",
+    chat_id: message.chat.id,
+    message_id: message.message_id,
+    user_id: from.id,
+    username: from.username || null,
+    display_name: [from.first_name, from.last_name].filter(Boolean).join(" "),
+    text,
+    date: message.date,
+    received_at: receivedAt,
+    status: "pending"
+  };
 }
 
 export function rememberMessage(state, key, message) {
