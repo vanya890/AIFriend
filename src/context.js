@@ -78,6 +78,23 @@ export async function appendChatContext(chatIdInput, entry, options = {}) {
   return chat;
 }
 
+export async function readChatContext(chatIdInput, options = {}) {
+  const chatId = safeChatId(chatIdInput);
+  const directory = options.directory || process.env.AIFRIEND_CONTEXT_DIR;
+  if (!directory) throw new Error("Missing AIFRIEND_CONTEXT_DIR");
+  const requested = Number.isSafeInteger(options.limit) && options.limit > 0
+    ? Math.min(options.limit, DEFAULT_CONTEXT_WINDOW)
+    : DEFAULT_CONTEXT_WINDOW;
+  const filePath = path.join(directory, `${chatId}.json`);
+  const chat = await readChatFile(filePath, chatId, DEFAULT_CONTEXT_WINDOW);
+  return {
+    chat_id: Number(chatId),
+    messages: chat.messages.slice(-requested),
+    pending: chat.pending,
+    window_size: chat.window_size || DEFAULT_CONTEXT_WINDOW
+  };
+}
+
 export async function recordBotReply(chatId, message, options = {}) {
   return appendChatContext(chatId, {
     role: "assistant",
