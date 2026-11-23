@@ -33,7 +33,7 @@ Telegram ↔ ChatGPT bridge. **No OpenAI API and no model runs inside GitHub Act
 
 ## Data
 
-- `data/state.json`: collector-owned Telegram offset, channels, post histories, private chat metadata, and append-only inbox (last 10,000 events). Private messages use `type: `private_message` and include `chat_id`, `message_id`, sender details, text, and pending status. Channel post events may include a `media` object with status, relative path, public raw URL, MIME type, and byte size.
+- `data/state.json`: collector-owned Telegram offset, channels, post histories, private chat metadata, and append-only inbox (last 10,000 events). Private messages use the field `type` with value `private_message` and include `chat_id`, `message_id`, sender details, text, and pending status. Channel post events may include a `media` object with status, relative path, public raw URL, MIME type, and byte size.
 - `data/media/`: validated image files referenced by channel post events. The collector commits these files together with `data/state.json`.
 - `data/processed.json`: ChatGPT-owned ledger of processed Telegram update IDs.
 - `data/memory.json`: ChatGPT-owned shared long-term memory.
