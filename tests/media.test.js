@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { selectImageFile, detectImageFormat } from "../src/media.js";
+import { selectImageFile, detectImageFormat, saveTelegramImage } from "../src/media.js";
 
 test("selects the largest Telegram photo variant", () => {
   const selected = selectImageFile({
@@ -25,4 +25,20 @@ test("detects image bytes rather than trusting file metadata", () => {
   assert.deepEqual(detectImageFormat(Buffer.from("GIF89a")), { mime_type: "image/gif", extension: "gif" });
   assert.deepEqual(detectImageFormat(Buffer.from("RIFF0000WEBP")), { mime_type: "image/webp", extension: "webp" });
   assert.equal(detectImageFormat(Buffer.from("not an image")), null);
+});
+
+test("does not publish images from channels without a public username", async () => {
+  const result = await saveTelegramImage({
+    photo: [{ file_id: "secret-file", file_unique_id: "secret", file_size: 100 }]
+  }, { id: -100123, username: null });
+  assert.equal(result.status, "not_published");
+  assert.match(result.reason, /not copied to the public repository/);
+});
+
+test("skips images above the repository storage limit without downloading", async () => {
+  const result = await saveTelegramImage({
+    photo: [{ file_id: "large-file", file_unique_id: "large", file_size: 9 * 1024 * 1024 }]
+  }, { id: -100123, username: "public_channel" });
+  assert.equal(result.status, "skipped");
+  assert.match(result.reason, /storage limit/);
 });
