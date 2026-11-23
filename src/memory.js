@@ -64,29 +64,6 @@ export function markProcessed(state, id) {
   }
 }
 
-export function createPrivateMessageEntry(message, updateId, receivedAt = new Date().toISOString()) {
-  const from = message.from || {};
-  const text = message.text || message.caption || (
-    message.photo ? "[photo]" :
-    message.video ? "[video]" :
-    message.document ? "[document]" :
-    "[non-text message]"
-  );
-  return {
-    update_id: updateId,
-    type: "private_message",
-    chat_id: message.chat.id,
-    message_id: message.message_id,
-    user_id: from.id,
-    username: from.username || null,
-    display_name: [from.first_name, from.last_name].filter(Boolean).join(" "),
-    text,
-    date: message.date,
-    received_at: receivedAt,
-    status: "pending"
-  };
-}
-
 export function rememberMessage(state, key, message) {
   const thread = state.posts[key] ||= { messages: [], discussion_chat_id: null, discussion_root_id: null };
   thread.messages.push(message);
