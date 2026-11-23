@@ -58,13 +58,6 @@ export async function saveTelegramImage(message, chat, options = {}) {
   const selected = selectImageFile(message);
   if (!selected) return null;
 
-  if (!chat.username) {
-    return {
-      status: "not_published",
-      reason: "Channel has no public username; image was not copied to the public repository."
-    };
-  }
-
   if (selected.file_size && selected.file_size > MAX_IMAGE_BYTES) {
     return {
       status: "skipped",
@@ -76,7 +69,7 @@ export async function saveTelegramImage(message, chat, options = {}) {
   const token = options.token || process.env.TELEGRAM_BOT_TOKEN;
   if (!token) throw new Error("Missing TELEGRAM_BOT_TOKEN");
 
-  const directory = options.directory || "data/media";
+  const directory = options.directory || process.env.AIFRIEND_MEDIA_DIR || "/tmp/aifriend-media";
   let lastError;
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     try {
@@ -116,7 +109,7 @@ export async function saveTelegramImage(message, chat, options = {}) {
           return {
             status: "available",
             path: target,
-            url: `https://raw.githubusercontent.com/vanya890/AIFriend/main/${target}`,
+            artifact_name: `telegram-media-${process.env.GITHUB_RUN_ID || "local"}`,\n            artifact_run_id: process.env.GITHUB_RUN_ID || null,
             mime_type: format.mime_type,
             size: existing.size,
             file_unique_id: selected.file_unique_id
@@ -132,7 +125,7 @@ export async function saveTelegramImage(message, chat, options = {}) {
       return {
         status: "available",
         path: target,
-        url: `https://raw.githubusercontent.com/vanya890/AIFriend/main/${target}`,
+        artifact_name: `telegram-media-${process.env.GITHUB_RUN_ID || "local"}`,\n        artifact_run_id: process.env.GITHUB_RUN_ID || null,
         mime_type: format.mime_type,
         size: bytes.length,
         file_unique_id: selected.file_unique_id
