@@ -1,5 +1,5 @@
 import { getUpdates } from "./telegram.js";
-import { loadState, saveState, wasProcessed, markProcessed, rememberMessage, createPrivateMessageEntry } from "./memory.js";
+import { loadState, saveState, wasProcessed, markProcessed, rememberMessage } from "./memory.js";
 import { saveTelegramImage } from "./media.js";
 import { appendChatContext, getImageReference } from "./context.js";
 
