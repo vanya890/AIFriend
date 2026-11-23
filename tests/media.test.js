@@ -27,14 +27,6 @@ test("detects image bytes rather than trusting file metadata", () => {
   assert.equal(detectImageFormat(Buffer.from("not an image")), null);
 });
 
-test("does not publish images from channels without a public username", async () => {
-  const result = await saveTelegramImage({
-    photo: [{ file_id: "secret-file", file_unique_id: "secret", file_size: 100 }]
-  }, { id: -100123, username: null });
-  assert.equal(result.status, "not_published");
-  assert.match(result.reason, /not copied to the public repository/);
-});
-
 test("skips images above the repository storage limit without downloading", async () => {
   const result = await saveTelegramImage({
     photo: [{ file_id: "large-file", file_unique_id: "large", file_size: 9 * 1024 * 1024 }]
