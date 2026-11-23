@@ -28,14 +28,14 @@ Each private chat file has this shape:
 
 Read the complete `messages` window for the relevant chat before responding. Use it to resolve references, avoid repeating answers, and understand what the bot has already said. Do not mix context from different chat IDs.
 
-For private messages, enumerate files under `AgentSharedMemory/temporary/aifriend/chats/` on branch `aifriend-runtime`. For each file, select entries from `pending` whose `update_id` is not in `processed.json.update_ids`. Process them chronologically. The rolling window is exactly the most recent 50 distinct Telegram messages/revisions; the pending queue is separate delivery state and is not a substitute for conversational context.
+Enumerate files under `AgentSharedMemory/temporary/aifriend/chats/` on branch `aifriend-runtime`. For every chat file, select entries from `pending` whose `update_id` is not in `processed.json.update_ids`. This includes private messages and linked discussion-group messages. Process them chronologically. The rolling window is exactly the most recent 50 distinct Telegram messages/revisions; the pending queue is separate delivery state and is not a substitute for conversational context.
 
 Bot replies are appended automatically by the command bridge only after Telegram confirms `sendMessage`. Do not manually add an assistant message to the context file and do not assume a reply was sent until the command bridge confirms it.
 
 ## Processing
 
 1. Select public inbox events with `status: "pending"` whose `update_id` is not in `processed.json.update_ids`.
-2. Also select private pending events from the private context files as described above.
+2. Also select pending events from every private context file as described above. These include private-chat messages and linked discussion-group messages.
 3. For channel posts, load matching post history from `state.posts`, then read the corresponding channel chat context file. Use channel title, post text, date, discussion context, and recent messages.
 4. For `private_message`, the reply destination is exactly that event's numeric `chat_id`. Never route a private reply to a channel or group.
 5. Do not reply to the bot's own messages, duplicates, spam, or events that do not merit a response. Do not invent missing context.
@@ -103,7 +103,7 @@ Before creating an Issue, check whether the same command ID already has a file i
 
 ## Reliability and privacy
 
-- Private message bodies, sender metadata, file IDs, and bot replies belong only in the private `AgentSharedMemory` runtime branch, never in the public `AIFriend` repository or Issues.
+- Private message bodies, linked discussion-group messages, sender metadata, file IDs, and bot replies belong only in the private `AgentSharedMemory` runtime branch, never in the public `AIFriend` repository or Issues. Public channel posts may remain in the public collector inbox.
 - Do not publish private-channel media, private messages, bot tokens, or other secrets.
 - Do not modify collector-owned files, context files, or Telegram offsets.
 - Do not send a reply just because an event exists. Respond only when useful and contextually appropriate.
