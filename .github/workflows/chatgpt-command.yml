@@ -8,13 +8,44 @@ permissions:
   issues: write
   contents: read
 
+concurrency:
+  group: aifriend-runtime-context
+  cancel-in-progress: false
+
 jobs:
   execute:
     if: startsWith(github.event.issue.title, '[aifriend]') && github.event.issue.user.login == 'vanya890'
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 3
     steps:
-      - name: Validate and execute Telegram command
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Validate shared-memory credential
+        env:
+          AGENT_SHARED_MEMORY_TOKEN: ${{ secrets.AGENT_SHARED_MEMORY_TOKEN }}
+        run: |
+          if [ -z "$AGENT_SHARED_MEMORY_TOKEN" ]; then
+            echo "::error::Add AGENT_SHARED_MEMORY_TOKEN with Contents read/write access to vanya890/AgentSharedMemory."
+            exit 1
+          fi
+
+      - name: Checkout private runtime storage
+        uses: actions/checkout@v4
+        with:
+          repository: vanya890/AgentSharedMemory
+          ref: aifriend-runtime
+          path: AgentSharedMemory
+          token: ${{ secrets.AGENT_SHARED_MEMORY_TOKEN }}
+          persist-credentials: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Validate and send Telegram command
+        id: send
         uses: actions/github-script@v7
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -65,8 +96,40 @@ jobs:
               throw new Error(`Telegram sendMessage failed: ${result.description || response.status}`);
             }
 
+            core.setOutput('chat_id', String(payload.chat_id));
+            core.setOutput('message_id', String(result.result.message_id));
+            core.setOutput('date', String(result.result.date));
+            core.setOutput('text', command.text);
+            core.setOutput('reply_to_message_id', command.reply_to_message_id == null ? '' : String(command.reply_to_message_id));
+
+      - name: Record confirmed bot reply in private context
+        env:
+          AIFRIEND_CONTEXT_DIR: AgentSharedMemory/temporary/aifriend/chats
+          AIFRIEND_CHAT_ID: ${{ steps.send.outputs.chat_id }}
+          AIFRIEND_MESSAGE_ID: ${{ steps.send.outputs.message_id }}
+          AIFRIEND_DATE: ${{ steps.send.outputs.date }}
+          AIFRIEND_TEXT: ${{ steps.send.outputs.text }}
+          AIFRIEND_REPLY_TO_MESSAGE_ID: ${{ steps.send.outputs.reply_to_message_id }}
+        run: node src/record-bot-reply.js
+
+      - name: Persist private chat context
+        run: |
+          git -C AgentSharedMemory add temporary/aifriend/chats/
+          if git -C AgentSharedMemory diff --cached --quiet; then
+            echo "No context changes to persist."
+          else
+            git -C AgentSharedMemory config user.name "github-actions[bot]"
+            git -C AgentSharedMemory config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git -C AgentSharedMemory commit -m "chore: record AIFriend bot reply"
+            git -C AgentSharedMemory push origin HEAD:aifriend-runtime
+          fi
+
+      - name: Confirm delivery and context persistence
+        uses: actions/github-script@v7
+        with:
+          script: |
             await github.rest.issues.createComment({
               ...context.repo,
-              issue_number: issue.number,
-              body: `Telegram message sent successfully. Chat ID: ${payload.chat_id}; message ID: ${result.result.message_id}.`
+              issue_number: context.issue.number,
+              body: `Telegram message sent and added to private chat context. Chat ID: ${{ steps.send.outputs.chat_id }}; message ID: ${{ steps.send.outputs.message_id }}.`
             });
