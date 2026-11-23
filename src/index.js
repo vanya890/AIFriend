@@ -106,7 +106,6 @@ for (const update of updates) {
       state.private_chats = {};
       state.inbox = (state.inbox || []).filter(item => !["private_message", "discussion_message", "discussion_post_link"].includes(item.type));
     } else if (message.chat.type === "group" || message.chat.type === "supergroup") {
-      const replyId = message.reply_to_message?.message_id || null;
       await recordIncoming(message, update.update_id, "user", "discussion_message", { pending: true });
       state.discussions[message.chat.id] ||= { title: message.chat.title || null };
       state.discussions[message.chat.id].last_seen_at = new Date().toISOString();
@@ -121,7 +120,7 @@ for (const update of updates) {
 if (changed) {
   // Also purge legacy private data from the current public snapshot.
   state.private_chats = {};
-  state.inbox = (state.inbox || []).filter(item => item.type !== "private_message");
+  state.inbox = (state.inbox || []).filter(item => !["private_message", "discussion_message", "discussion_post_link"].includes(item.type));
   await saveState(state);
 }
 console.log(JSON.stringify({
