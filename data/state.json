@@ -4,43 +4,8 @@
   "channels": {},
   "posts": {},
   "discussions": {},
-  "private_chats": {
-    "518492624": {
-      "chat_id": 518492624,
-      "user_id": 518492624,
-      "username": "CODY890",
-      "display_name": "Иван Кусь",
-      "last_seen_at": "2026-11-23T15:58:30.281Z"
-    }
-  },
-  "inbox": [
-    {
-      "update_id": 380080399,
-      "type": "private_message",
-      "chat_id": 518492624,
-      "message_id": 2,
-      "user_id": 518492624,
-      "username": "CODY890",
-      "display_name": "Иван Кусь",
-      "text": "Привет!",
-      "date": 1795449415,
-      "received_at": "2026-11-23T15:58:30.281Z",
-      "status": "pending"
-    },
-    {
-      "update_id": 380080400,
-      "type": "private_message",
-      "chat_id": 518492624,
-      "message_id": 3,
-      "user_id": 518492624,
-      "username": "CODY890",
-      "display_name": "Иван Кусь",
-      "text": "[photo]",
-      "date": 1795449430,
-      "received_at": "2026-11-23T15:58:30.281Z",
-      "status": "pending"
-    }
-  ],
+  "private_chats": {},
+  "inbox": [],
   "memory": {
     "summary": "",
     "facts": [],
