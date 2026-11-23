@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { appendChatContext, getImageReference, readChatContext, recordBotReply } from "../src/context.js";
+import { appendChatContext, getImageReference, pruneProcessedPending, readChatContext, recordBotReply } from "../src/context.js";
 
 test("keeps only the latest 50 messages in each chat window", async () => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), "aifriend-context-"));
@@ -90,6 +90,26 @@ test("reads a requested number of most recent messages, capped at 50", async () 
     assert.equal(recent.messages.at(-1).message_id, 50);
     const capped = await readChatContext(321, { directory, limit: 500 });
     assert.equal(capped.messages.length, 50);
+  } finally {
+    await fs.rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("prunes only acknowledged events from the pending queue", async () => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), "aifriend-context-"));
+  try {
+    for (let i = 1; i <= 3; i++) {
+      await appendChatContext(555, {
+        update_id: i,
+        message_id: i,
+        text: String(i)
+      }, { directory, pending: true });
+    }
+    const removed = await pruneProcessedPending(directory, [1, 3]);
+    const chat = JSON.parse(await fs.readFile(path.join(directory, "555.json"), "utf8"));
+    assert.equal(removed, 2);
+    assert.deepEqual(chat.pending.map(item => item.update_id), [2]);
+    assert.equal(chat.messages.length, 3);
   } finally {
     await fs.rm(directory, { recursive: true, force: true });
   }
