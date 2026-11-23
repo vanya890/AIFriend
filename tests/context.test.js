@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { appendChatContext, getImageReference, recordBotReply } from "../src/context.js";
+import { appendChatContext, getImageReference, readChatContext, recordBotReply } from "../src/context.js";
 
 test("keeps only the latest 50 messages in each chat window", async () => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), "aifriend-context-"));
@@ -76,4 +76,21 @@ test("extracts reusable Telegram file IDs without constructing download URLs", (
     mime_type: "image/jpeg"
   });
   assert.equal(getImageReference({ document: { file_id: "pdf", mime_type: "application/pdf" } }), null);
+});
+
+test("reads a requested number of most recent messages, capped at 50", async () => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), "aifriend-context-"));
+  try {
+    for (let i = 1; i <= 50; i++) {
+      await appendChatContext(321, { message_id: i, text: String(i) }, { directory });
+    }
+    const recent = await readChatContext(321, { directory, limit: 7 });
+    assert.equal(recent.messages.length, 7);
+    assert.equal(recent.messages[0].message_id, 44);
+    assert.equal(recent.messages.at(-1).message_id, 50);
+    const capped = await readChatContext(321, { directory, limit: 500 });
+    assert.equal(capped.messages.length, 50);
+  } finally {
+    await fs.rm(directory, { recursive: true, force: true });
+  }
 });
