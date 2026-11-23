@@ -1,9 +1,18 @@
+import fs from "node:fs/promises";
 import { getUpdates } from "./telegram.js";
 import { loadState, saveState, wasProcessed, markProcessed, rememberMessage } from "./memory.js";
 import { saveTelegramImage } from "./media.js";
-import { appendChatContext, getImageReference } from "./context.js";
+import { appendChatContext, getImageReference, pruneProcessedPending } from "./context.js";
 
 const state = await loadState();
+let processedUpdateIds = [];
+try {
+  const ledger = JSON.parse(await fs.readFile("data/processed.json", "utf8"));
+  processedUpdateIds = Array.isArray(ledger.update_ids) ? ledger.update_ids : [];
+} catch (error) {
+  if (error.code !== "ENOENT") throw error;
+}
+const prunedPending = await pruneProcessedPending(process.env.AIFRIEND_CONTEXT_DIR, processedUpdateIds);
 const updates = await getUpdates(state.offset);
 let changed = false;
 
@@ -133,6 +142,7 @@ if (changed) {
 }
 console.log(JSON.stringify({
   received_updates: updates.length,
+  pruned_pending: prunedPending,
   next_offset: state.offset,
   known_channels: Object.keys(state.channels).length,
   queued_events: (state.inbox || []).filter(item => item.status === "pending").length
