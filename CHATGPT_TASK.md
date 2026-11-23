@@ -58,10 +58,9 @@ The collector downloads supported Telegram photos and image documents (JPEG, PNG
 
 ## Replies
 
-When a reply is warranted, create a GitHub Issue in `vanya890/AIFriend`:
-- title starts with `[aifriend]`;
-- author must be `vanya890`;
-- body contains exactly one JSON command, for example:
+When a reply is warranted, first create a private command file in `vanya890/AgentSharedMemory`, branch `aifriend-runtime`:
+- path: `temporary/aifriend/commands/<command_id>.json`;
+- contents: one JSON object, for example:
 
 ```json
 {
@@ -72,9 +71,25 @@ When a reply is warranted, create a GitHub Issue in `vanya890/AIFriend`:
 }
 ```
 
+Use a unique command ID, preferably `tg-<update_id>`. Check that `temporary/aifriend/commands/sent/<command_id>.json` does not already exist before creating a new command.
+
+Then create an Issue in the public `vanya890/AIFriend` repository:
+- title: `[aifriend] <command_id>`;
+- author: `vanya890`;
+- body contains only this reference object:
+
+```json
+{
+  "action": "execute_private_command",
+  "command_id": "tg-123456"
+}
+```
+
+**Never put chat IDs, message text, private context, file IDs, or other personal data in the public Issue title or body.** The full command payload belongs only in the private shared-memory branch.
+
 For private replies, use the exact `chat_id` from the private event and omit `reply_to_message_id` unless replying to a specific private message. For channel comments, use the linked discussion group's numeric chat ID and the appropriate forwarded/root message ID.
 
-Before creating a command Issue, check whether a command for the same `update_id` already exists to reduce duplicate sends after an interrupted run. Include the update ID in the Issue title or body for traceability.
+Before creating an Issue, check whether the same command ID already has a file in `commands/` or a sent marker in `commands/sent/`. The command bridge records the confirmed Telegram reply in the chat context, removes the queued command file, and creates a sent marker after successful delivery. Do not recreate or resend a command with an existing sent marker.
 
 ## Commit the task ledger
 
