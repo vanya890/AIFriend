@@ -34,7 +34,16 @@ jobs:
           npm test
           npm start
 
-      - name: Upload temporary Telegram images\n        if: always()\n        uses: actions/upload-artifact@v4\n        with:\n          name: telegram-media-${{ github.run_id }}\n          path: /tmp/aifriend-media/\n          if-no-files-found: ignore\n          retention-days: 1\n\n      - name: Persist inbox and memory
+      - name: Upload temporary Telegram images
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: telegram-media-${{ github.run_id }}
+          path: /tmp/aifriend-media/
+          if-no-files-found: ignore
+          retention-days: 1
+
+      - name: Persist inbox and memory
         run: |
           if git diff --quiet -- data/state.json; then
             echo "No new Telegram updates."
