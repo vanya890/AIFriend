@@ -6,7 +6,7 @@ Telegram ↔ ChatGPT bridge. **No OpenAI API and no model runs inside GitHub Act
 
 1. GitHub Actions polls Telegram Bot API every five minutes and stores incoming channel posts and discussion messages in `data/state.json`.
 2. ChatGPT scheduled tasks read the inbox and shared memory from this repository, reason over the messages using the ChatGPT model available in the conversation, and prepare replies.
-3. ChatGPT sends replies through a narrowly scoped GitHub Actions command bridge (to be enabled in the next implementation step). The bridge calls Telegram Bot API only; it never generates text.
+3. ChatGPT sends replies through a narrowly scoped GitHub Actions command bridge. The bridge calls Telegram Bot API only; it never generates text.
 
 ## Required Telegram setup
 
