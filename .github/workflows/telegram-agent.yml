@@ -9,18 +9,36 @@ permissions:
   contents: write
 
 concurrency:
-  group: telegram-inbox-collector
+  group: aifriend-runtime-context
   cancel-in-progress: false
 
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 4
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
         with:
           ref: main
           fetch-depth: 0
+
+      - name: Validate shared-memory credential
+        env:
+          AGENT_SHARED_MEMORY_TOKEN: ${{ secrets.AGENT_SHARED_MEMORY_TOKEN }}
+        run: |
+          if [ -z "$AGENT_SHARED_MEMORY_TOKEN" ]; then
+            echo "::error::Add AGENT_SHARED_MEMORY_TOKEN with Contents read/write access to vanya890/AgentSharedMemory."
+            exit 1
+          fi
+
+      - name: Checkout private runtime storage
+        uses: actions/checkout@v4
+        with:
+          repository: vanya890/AgentSharedMemory
+          ref: aifriend-runtime
+          path: AgentSharedMemory
+          token: ${{ secrets.AGENT_SHARED_MEMORY_TOKEN }}
+          persist-credentials: true
 
       - uses: actions/setup-node@v4
         with:
@@ -29,6 +47,7 @@ jobs:
       - name: Collect Telegram updates
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          AIFRIEND_CONTEXT_DIR: AgentSharedMemory/temporary/aifriend/chats
         run: |
           npm run check
           npm test
@@ -43,10 +62,22 @@ jobs:
           if-no-files-found: ignore
           retention-days: 1
 
-      - name: Persist inbox and memory
+      - name: Persist private chat context
+        run: |
+          git -C AgentSharedMemory add temporary/aifriend/chats/
+          if git -C AgentSharedMemory diff --cached --quiet; then
+            echo "No private chat context changes."
+          else
+            git -C AgentSharedMemory config user.name "github-actions[bot]"
+            git -C AgentSharedMemory config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git -C AgentSharedMemory commit -m "chore: update AIFriend rolling chat context"
+            git -C AgentSharedMemory push origin HEAD:aifriend-runtime
+          fi
+
+      - name: Persist public inbox metadata
         run: |
           if git diff --quiet -- data/state.json; then
-            echo "No new Telegram updates."
+            echo "No public inbox changes."
             exit 0
           fi
           git config user.name "github-actions[bot]"
