@@ -1,100 +1,100 @@
-import { getUpdates, sendThreadReply } from "./telegram.js";
-import { loadState, saveState, wasProcessed, markProcessed, addThreadMessage, buildMemoryContext } from "./memory.js";
-import { generateReply } from "./agent.js";
+import { getUpdates } from "./telegram.js";
+import { loadState, saveState, wasProcessed, markProcessed, rememberMessage } from "./memory.js";
 
 const state = await loadState();
 const updates = await getUpdates(state.offset);
 let changed = false;
 
-function channelKey(chatId, postId) {
-  return `${chatId}:${postId}`;
+function postKey(chatId, messageId) {
+  return `${chatId}:${messageId}`;
 }
-
-function getText(message) {
-  return message.text || message.caption || (message.photo ? "[photo]" : message.video ? "[video]" : message.document ? "[document]" : "[non-text message]");
+function messageText(message) {
+  return message.text || message.caption || (
+    message.photo ? "[photo]" :
+    message.video ? "[video]" :
+    message.document ? "[document]" :
+    "[non-text message]"
+  );
 }
-
-async function answerInDiscussion({ chatId, replyToMessageId, threadKey, event }) {
-  const context = buildMemoryContext(state, threadKey);
-  const reply = await generateReply({ event, context });
-  if (reply === "SKIP") return null;
-  const sent = await sendThreadReply(chatId, replyToMessageId, reply);
-  addThreadMessage(state, threadKey, {
-    role: "assistant",
-    text: reply,
-    telegram_message_id: sent.message_id,
-    created_at: new Date().toISOString()
-  });
-  return sent;
+function appendInbox(entry) {
+  state.inbox ||= [];
+  state.inbox.push(entry);
 }
 
 for (const update of updates) {
   if (wasProcessed(state, update.update_id)) continue;
 
-  const post = update.channel_post || update.edited_channel_post;
-  if (post) {
-    const id = channelKey(post.chat.id, post.message_id);
-    state.channels[post.chat.id] ||= {
-      id: post.chat.id,
-      title: post.chat.title || String(post.chat.id),
-      username: post.chat.username || null,
+  const channelPost = update.channel_post || update.edited_channel_post;
+  if (channelPost) {
+    const chat = channelPost.chat;
+    state.channels[chat.id] = {
+      id: chat.id,
+      title: chat.title || String(chat.id),
+      username: chat.username || null,
       last_seen_at: new Date().toISOString()
     };
-    state.channels[post.chat.id].last_seen_at = new Date().toISOString();
-    state.threads[id] ||= { messages: [], updated_at: null, discussion_chat_id: null, root_message_id: null };
-    addThreadMessage(state, id, {
-      role: "channel_post",
-      text: getText(post),
-      channel_id: post.chat.id,
-      channel_title: post.chat.title || null,
-      channel_post_id: post.message_id,
-      created_at: new Date(post.date * 1000).toISOString()
+    const key = postKey(chat.id, channelPost.message_id);
+    rememberMessage(state, key, {
+      type: update.edited_channel_post ? "edited_channel_post" : "channel_post",
+      text: messageText(channelPost),
+      message_id: channelPost.message_id,
+      date: channelPost.date,
+      from: chat.title || chat.username || String(chat.id)
+    });
+    appendInbox({
+      update_id: update.update_id,
+      type: update.edited_channel_post ? "edited_channel_post" : "channel_post",
+      channel_id: chat.id,
+      channel_title: chat.title || null,
+      channel_username: chat.username || null,
+      post_id: channelPost.message_id,
+      text: messageText(channelPost),
+      date: channelPost.date,
+      received_at: new Date().toISOString(),
+      status: "pending"
     });
   }
 
   const message = update.message;
-  if (message?.is_automatic_forward && message.forward_origin?.type === "channel") {
-    const origin = message.forward_origin;
-    const threadKey = channelKey(origin.chat.id, origin.message_id);
-    const thread = state.threads[threadKey] ||= { messages: [], updated_at: null, discussion_chat_id: null, root_message_id: null };
-    thread.discussion_chat_id = message.chat.id;
-    thread.root_message_id = message.message_id;
-    if (!thread.initial_reply_sent) {
-      const channel = state.channels[origin.chat.id] || { id: origin.chat.id, title: origin.chat.title || "Telegram channel" };
-      const postText = thread.messages.find(item => item.role === "channel_post")?.text || getText(message);
-      await answerInDiscussion({
-        chatId: message.chat.id,
-        replyToMessageId: message.message_id,
-        threadKey,
-        event: { type: "new_channel_post", channel, post: postText, post_id: origin.message_id }
+  if (message && !message.from?.is_bot) {
+    if (message.is_automatic_forward && message.forward_origin?.type === "channel") {
+      const origin = message.forward_origin;
+      const key = postKey(origin.chat.id, origin.message_id);
+      const post = state.posts[key] ||= { messages: [] };
+      post.discussion_chat_id = message.chat.id;
+      post.discussion_root_id = message.message_id;
+      post.discussion_title = message.chat.title || null;
+      appendInbox({
+        update_id: update.update_id,
+        type: "discussion_post_link",
+        channel_id: origin.chat.id,
+        post_id: origin.message_id,
+        discussion_chat_id: message.chat.id,
+        discussion_root_id: message.message_id,
+        text: messageText(message),
+        date: message.date,
+        received_at: new Date().toISOString(),
+        status: "pending"
       });
-      thread.initial_reply_sent = true;
-    }
-  } else if (message && !message.from?.is_bot && message.reply_to_message) {
-    const repliedToBot = message.reply_to_message.from?.is_bot;
-    if (repliedToBot) {
-      const match = Object.entries(state.threads).find(([, value]) =>
-        value.discussion_chat_id === message.chat.id &&
-        (value.root_message_id === message.reply_to_message.message_id ||
-         value.messages.some(item => item.telegram_message_id === message.reply_to_message.message_id))
-      );
-      if (match) {
-        const [threadKey] = match;
-        addThreadMessage(state, threadKey, {
-          role: "user",
-          text: getText(message),
-          user_id: message.from.id,
-          username: message.from.username || null,
-          telegram_message_id: message.message_id,
-          created_at: new Date(message.date * 1000).toISOString()
-        });
-        await answerInDiscussion({
-          chatId: message.chat.id,
-          replyToMessageId: message.message_id,
-          threadKey,
-          event: { type: "reply_to_agent", text: getText(message), username: message.from.username || null }
-        });
-      }
+    } else if (message.chat.type === "group" || message.chat.type === "supergroup") {
+      const replyId = message.reply_to_message?.message_id || null;
+      const entry = {
+        update_id: update.update_id,
+        type: "discussion_message",
+        discussion_chat_id: message.chat.id,
+        message_id: message.message_id,
+        reply_to_message_id: replyId,
+        user_id: message.from.id,
+        username: message.from.username || null,
+        display_name: [message.from.first_name, message.from.last_name].filter(Boolean).join(" "),
+        text: messageText(message),
+        date: message.date,
+        received_at: new Date().toISOString(),
+        status: "pending"
+      };
+      appendInbox(entry);
+      state.discussions[message.chat.id] ||= { title: message.chat.title || null };
+      state.discussions[message.chat.id].last_seen_at = new Date().toISOString();
     }
   }
 
@@ -103,11 +103,12 @@ for (const update of updates) {
   changed = true;
 }
 
-if (changed) await saveState(state);
+if (changed) {
+  await saveState(state);
+}
 console.log(JSON.stringify({
   received_updates: updates.length,
   next_offset: state.offset,
   known_channels: Object.keys(state.channels).length,
-  known_threads: Object.keys(state.threads).length,
-  shared_memory_items: state.memory.recent_activity?.length || 0
+  queued_events: (state.inbox || []).filter(item => item.status === "pending").length
 }));
