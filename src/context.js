@@ -90,7 +90,7 @@ export async function pruneProcessedPending(directory, processedUpdateIds = []) 
     throw error;
   }
 
-  for (const name of files.filter(item => /^-?\\d+\\.json$/.test(item))) {
+  for (const name of files.filter(item => /^-?\d+\.json$/.test(item))) {
     const filePath = path.join(directory, name);
     const chat = JSON.parse(await fs.readFile(filePath, "utf8"));
     const pending = Array.isArray(chat.pending) ? chat.pending : [];
@@ -100,7 +100,7 @@ export async function pruneProcessedPending(directory, processedUpdateIds = []) 
     chat.pending = remaining;
     chat.updated_at = new Date().toISOString();
     const temporary = `${filePath}.tmp`;
-    await fs.writeFile(temporary, JSON.stringify(chat, null, 2) + "\\n", "utf8");
+    await fs.writeFile(temporary, JSON.stringify(chat, null, 2) + "\n", "utf8");
     await fs.rename(temporary, filePath);
   }
   return removed;
