@@ -44,92 +44,52 @@ jobs:
         with:
           node-version: 22
 
-      - name: Validate and send Telegram command
-        id: send
+      - name: Validate private command reference
+        id: command
         uses: actions/github-script@v7
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         with:
           script: |
             const issue = context.payload.issue;
-            const token = process.env.TELEGRAM_BOT_TOKEN;
-            if (!token) throw new Error('Missing TELEGRAM_BOT_TOKEN secret');
-
-            let command;
+            let payload;
             try {
-              command = JSON.parse(issue.body || '');
+              payload = JSON.parse(issue.body || '');
             } catch {
-              throw new Error('Issue body must contain one JSON object');
+              throw new Error('Issue body must contain one JSON command reference');
             }
+            if (!payload || typeof payload !== 'object' || Array.isArray(payload) ||
+                payload.action !== 'execute_private_command' ||
+                typeof payload.command_id !== 'string' ||
+                !/^[A-Za-z0-9_-]{1,100}$/.test(payload.command_id)) {
+              throw new Error('Expected execute_private_command with a valid command_id');
+            }
+            core.setOutput('command_id', payload.command_id);
 
-            if (!command || typeof command !== 'object' || Array.isArray(command)) {
-              throw new Error('Command must be a JSON object');
-            }
-            if (command.action !== 'send_message') {
-              throw new Error('Only send_message is allowed');
-            }
-            if (!Number.isSafeInteger(Number(command.chat_id))) {
-              throw new Error('chat_id must be a numeric Telegram chat ID');
-            }
-            if (typeof command.text !== 'string' || !command.text.trim() || command.text.length > 4096) {
-              throw new Error('text must contain 1..4096 characters');
-            }
-            if (command.reply_to_message_id != null && !Number.isSafeInteger(Number(command.reply_to_message_id))) {
-              throw new Error('reply_to_message_id must be numeric');
-            }
-
-            const payload = { chat_id: Number(command.chat_id), text: command.text };
-            if (command.reply_to_message_id != null) {
-              payload.reply_parameters = {
-                message_id: Number(command.reply_to_message_id),
-                allow_sending_without_reply: false
-              };
-            }
-
-            const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-              method: 'POST',
-              headers: { 'content-type': 'application/json' },
-              body: JSON.stringify(payload)
-            });
-            const result = await response.json();
-            if (!response.ok || !result.ok) {
-              throw new Error(`Telegram sendMessage failed: ${result.description || response.status}`);
-            }
-
-            core.setOutput('chat_id', String(payload.chat_id));
-            core.setOutput('message_id', String(result.result.message_id));
-            core.setOutput('date', String(result.result.date));
-            core.setOutput('text', command.text);
-            core.setOutput('reply_to_message_id', command.reply_to_message_id == null ? '' : String(command.reply_to_message_id));
-
-      - name: Record confirmed bot reply in private context
+      - name: Execute command and record confirmed bot reply
         env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          AIFRIEND_COMMAND_ID: ${{ steps.command.outputs.command_id }}
+          AIFRIEND_COMMAND_DIR: AgentSharedMemory/temporary/aifriend/commands
           AIFRIEND_CONTEXT_DIR: AgentSharedMemory/temporary/aifriend/chats
-          AIFRIEND_CHAT_ID: ${{ steps.send.outputs.chat_id }}
-          AIFRIEND_MESSAGE_ID: ${{ steps.send.outputs.message_id }}
-          AIFRIEND_DATE: ${{ steps.send.outputs.date }}
-          AIFRIEND_TEXT: ${{ steps.send.outputs.text }}
-          AIFRIEND_REPLY_TO_MESSAGE_ID: ${{ steps.send.outputs.reply_to_message_id }}
-        run: node src/record-bot-reply.js
+        run: node src/execute-private-command.js
 
-      - name: Persist private chat context
+      - name: Persist private command result and chat context
         run: |
-          git -C AgentSharedMemory add temporary/aifriend/chats/
+          git -C AgentSharedMemory add temporary/aifriend/chats/ temporary/aifriend/commands/
           if git -C AgentSharedMemory diff --cached --quiet; then
-            echo "No context changes to persist."
+            echo "No private runtime changes."
           else
             git -C AgentSharedMemory config user.name "github-actions[bot]"
             git -C AgentSharedMemory config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git -C AgentSharedMemory commit -m "chore: record AIFriend bot reply"
+            git -C AgentSharedMemory commit -m "chore: record AIFriend command result"
             git -C AgentSharedMemory push origin HEAD:aifriend-runtime
           fi
 
-      - name: Confirm delivery and context persistence
+      - name: Confirm delivery without exposing private data
         uses: actions/github-script@v7
         with:
           script: |
             await github.rest.issues.createComment({
               ...context.repo,
               issue_number: context.issue.number,
-              body: `Telegram message sent and added to private chat context. Chat ID: ${{ steps.send.outputs.chat_id }}; message ID: ${{ steps.send.outputs.message_id }}.`
+              body: 'Telegram message delivered and recorded in private chat context.'
             });
