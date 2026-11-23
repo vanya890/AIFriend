@@ -31,3 +31,35 @@ Telegram ↔ ChatGPT bridge. **No OpenAI API and no model runs inside GitHub Act
 ## Data
 
 - `data/state.json`: shared state, channels, posts, inbox, and long-term memory.
+
+## ChatGPT command bridge
+
+ChatGPT can send a reply by creating an Issue with:
+- title beginning with `[aifriend]`;
+- author `vanya890`;
+- body containing one JSON object, for example:
+
+```json
+{
+  "action": "send_message",
+  "chat_id": -1001234567890,
+  "text": "Текст комментария",
+  "reply_to_message_id": 123
+}
+```
+
+The `reply_to_message_id` field is optional. Use the message ID of the automatic channel forward in the linked discussion group to create a top-level comment, or the user's message ID to reply to that user. The `chat_id` must be the linked discussion group's numeric ID.
+
+The workflow `.github/workflows/chatgpt-command.yml` validates the command and sends it through Telegram Bot API. It does not call an LLM. ChatGPT itself reads `data/state.json`, interprets pending inbox entries, and decides what to write.
+
+## ChatGPT scheduled-task loop
+
+For each scheduled run, the ChatGPT task should:
+1. Read `data/state.json` from the repository.
+2. Process pending `inbox` events in chronological order, using the full matching post/thread history and shared `memory`.
+3. Avoid replying to the bot's own messages, duplicates, spam, and messages that do not merit a response.
+4. For each reply, create an Issue using the command format above.
+5. Update the relevant inbox entries to `processed` and maintain concise shared memory in `data/state.json`.
+6. Preserve message IDs, channel IDs, discussion group IDs, and offsets. Never overwrite newer state with an older snapshot.
+
+The scheduled task is the reasoning layer. GitHub Actions only collects Telegram updates and delivers ChatGPT-authored messages.
