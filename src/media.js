@@ -124,7 +124,7 @@ export async function saveTelegramImage(message, chat, options = {}) {
       await fs.rename(temporary, target);
       return {
         status: "available",
-        path: target,
+        path: path.basename(target),
         artifact_name: `telegram-media-${process.env.GITHUB_RUN_ID || "local"}`,\n        artifact_run_id: process.env.GITHUB_RUN_ID || null,
         mime_type: format.mime_type,
         size: bytes.length,
