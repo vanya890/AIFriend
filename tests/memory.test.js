@@ -1,11 +1,26 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { emptyState, wasProcessed, markProcessed, rememberMessage } from "../src/memory.js";
+import { emptyState, normalizeState, wasProcessed, markProcessed, rememberMessage } from "../src/memory.js";
 
-test("state starts with empty inbox and memory", () => {
+test("state starts with initialized inbox and memory", () => {
   const state = emptyState();
-  assert.deepEqual(state.inbox, undefined);
+  assert.deepEqual(state.inbox, []);
   assert.deepEqual(state.memory.facts, []);
+});
+
+test("legacy state migrates threads and initializes missing collections", () => {
+  const state = normalizeState({
+    offset: 7,
+    threads: { "-100:5": { messages: [{ text: "saved" }] } },
+    memory: { summary: "keep this", facts: ["fact"] },
+    processed_updates: [1, 2]
+  });
+  assert.deepEqual(state.posts["-100:5"].messages, [{ text: "saved" }]);
+  assert.deepEqual(state.inbox, []);
+  assert.deepEqual(state.discussions, {});
+  assert.equal(state.offset, 7);
+  assert.equal(state.memory.summary, "keep this");
+  assert.deepEqual(state.processed_updates, [1, 2]);
 });
 
 test("update ids are tracked", () => {
