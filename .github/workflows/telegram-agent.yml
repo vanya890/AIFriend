@@ -1,4 +1,4 @@
-name: Telegram AI Friend
+name: Telegram Inbox Collector
 
 on:
   schedule:
@@ -9,42 +9,38 @@ permissions:
   contents: write
 
 concurrency:
-  group: telegram-agent-poll
+  group: telegram-inbox-collector
   cancel-in-progress: false
 
 jobs:
-  poll:
+  collect:
     runs-on: ubuntu-latest
     timeout-minutes: 4
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           ref: main
           fetch-depth: 0
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      - name: Poll Telegram and process updates
+      - name: Collect Telegram updates
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENAI_MODEL: ${{ vars.OPENAI_MODEL }}
         run: |
           npm run check
           npm start
 
-      - name: Persist agent memory
+      - name: Persist inbox and memory
         run: |
           if git diff --quiet -- data/state.json; then
-            echo "No state changes."
+            echo "No new Telegram updates."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/state.json
-          git commit -m "chore: persist Telegram agent state"
+          git commit -m "chore: collect Telegram inbox"
           git push origin HEAD:main
