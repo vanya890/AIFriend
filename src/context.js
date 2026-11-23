@@ -78,6 +78,34 @@ export async function appendChatContext(chatIdInput, entry, options = {}) {
   return chat;
 }
 
+export async function pruneProcessedPending(directory, processedUpdateIds = []) {
+  if (!directory) throw new Error("Missing AIFRIEND_CONTEXT_DIR");
+  const processed = new Set(processedUpdateIds.map(Number));
+  let removed = 0;
+  let files = [];
+  try {
+    files = await fs.readdir(directory);
+  } catch (error) {
+    if (error.code === "ENOENT") return 0;
+    throw error;
+  }
+
+  for (const name of files.filter(item => /^-?\\d+\\.json$/.test(item))) {
+    const filePath = path.join(directory, name);
+    const chat = JSON.parse(await fs.readFile(filePath, "utf8"));
+    const pending = Array.isArray(chat.pending) ? chat.pending : [];
+    const remaining = pending.filter(item => !processed.has(Number(item.update_id)));
+    if (remaining.length === pending.length) continue;
+    removed += pending.length - remaining.length;
+    chat.pending = remaining;
+    chat.updated_at = new Date().toISOString();
+    const temporary = `${filePath}.tmp`;
+    await fs.writeFile(temporary, JSON.stringify(chat, null, 2) + "\\n", "utf8");
+    await fs.rename(temporary, filePath);
+  }
+  return removed;
+}
+
 export async function readChatContext(chatIdInput, options = {}) {
   const chatId = safeChatId(chatIdInput);
   const directory = options.directory || process.env.AIFRIEND_CONTEXT_DIR;
