@@ -5,7 +5,7 @@ Telegram ↔ ChatGPT bridge. **No OpenAI API and no model runs inside GitHub Act
 ## Architecture
 
 1. GitHub Actions polls Telegram Bot API every five minutes.
-2. Public channel/group inbox metadata is stored in `data/state.json`.
+2. Public channel posts and post history are stored in `data/state.json`. Private messages and linked discussion-group message bodies are stored only in the private runtime branch.
 3. All Telegram chats also get a private rolling context window in `vanya890/AgentSharedMemory`, branch `aifriend-runtime`, under `temporary/aifriend/chats/<chat_id>.json`.
 4. Each chat window retains the latest 50 messages, including incoming user/channel messages and confirmed bot replies. A separate bounded `pending` queue prevents unprocessed private messages from being evicted by the rolling window.
 5. ChatGPT scheduled tasks read the inbox and private context, reason using the ChatGPT model available in the conversation, and prepare replies.
@@ -42,7 +42,7 @@ The shared-memory token is used only by checkout/push operations against the pri
 - Telegram download URLs are never stored because they contain the bot token.
 - The private runtime branch is operational state and must not be merged into `main`.
 
-Private message bodies and sender metadata are no longer written to the public `data/state.json`. The current public snapshot was cleaned, but earlier Git commits may still contain previously committed test messages; deleting the current file does not rewrite public Git history.
+Private messages, linked discussion-group message bodies, sender metadata, file IDs, and bot replies are not written to the public `data/state.json` or public command Issues. The current public snapshot and legacy Issue #1 were redacted, but earlier Git commits may still contain previously committed test messages; editing the current snapshot does not rewrite public Git history.
 
 ## Images
 
