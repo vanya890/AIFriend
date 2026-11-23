@@ -53,20 +53,14 @@ Private message bodies and sender metadata are no longer written to the public `
 
 ## ChatGPT command bridge
 
-ChatGPT sends a reply by creating an Issue in this repository:
-- title beginning with `[aifriend]`;
-- author `vanya890`;
-- body containing one JSON object:
+The full Telegram command payload is stored privately in `AgentSharedMemory/temporary/aifriend/commands/<command_id>.json` on branch `aifriend-runtime`. The public Issue in this repository contains only a reference:
 
 ```json
 {
-  "action": "send_message",
-  "chat_id": 123456789,
-  "text": "Текст ответа",
-  "reply_to_message_id": 123
+  "action": "execute_private_command",
+  "command_id": "tg-123456"
 }
 ```
 
-The `reply_to_message_id` field is optional. For a private reply, use the numeric `chat_id` from the private context event and omit `reply_to_message_id` unless replying to a specific message. The bridge appends the assistant message to the private context only after Telegram confirms delivery.
-
+The Issue title starts with `[aifriend]` and must be created by `vanya890`. Never place chat IDs, message text, private context, or file IDs in the public Issue. After Telegram confirms delivery, the bridge records the assistant message in the private chat context, removes the queued command, and writes a private sent marker.
 See [CHATGPT_TASK.md](CHATGPT_TASK.md) for the complete scheduled-task protocol.
