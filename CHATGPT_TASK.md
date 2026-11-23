@@ -40,7 +40,7 @@ Bot replies are appended automatically by the command bridge only after Telegram
 4. For `private_message`, the reply destination is exactly that event's numeric `chat_id`. For `discussion_message`, use the event's `chat_id` (the linked discussion group) and reply to its `reply_to_message_id` when appropriate. Treat `discussion_post_link` as thread-root context, not as a user message requiring a reply; its `forward_origin.discussion_root_id` identifies the root message. Never route a private reply to a channel or group.
 5. Do not reply to the bot's own messages, duplicates, spam, or events that do not merit a response. Do not invent missing context.
 6. Keep each event isolated: do not mix private messages, channels, or unrelated discussion threads.
-7. After handling an event, add its `update_id` to `processed.json.update_ids`. The private pending queue itself is append-only/bounded and does not need a status mutation.
+7. After handling an event, add its `update_id` to `processed.json.update_ids`. Do not edit the private context file: the next collector run reads the processed ledger and removes acknowledged IDs from each chat's `pending` queue while preserving the 50-message window.
 
 ## Mandatory visual analysis of images
 
