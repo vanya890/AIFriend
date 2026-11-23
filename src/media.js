@@ -77,20 +77,18 @@ export async function saveTelegramImage(message, chat, options = {}) {
   if (!token) throw new Error("Missing TELEGRAM_BOT_TOKEN");
 
   const directory = options.directory || "data/media";
-  const file = await fetchTelegramFile(selected.file_id, token);
-  if (file.file_size && file.file_size > MAX_IMAGE_BYTES) {
-    return {
-      status: "skipped",
-      reason: `Image exceeds the ${MAX_IMAGE_BYTES} byte storage limit.`,
-      file_size: file.file_size
-    };
-  }
-
-  let response;
   let lastError;
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     try {
-      response = await fetch(`https://api.telegram.org/file/bot${token}/${file.file_path}`, {
+      const file = await fetchTelegramFile(selected.file_id, token);
+      if (file.file_size && file.file_size > MAX_IMAGE_BYTES) {
+        return {
+          status: "skipped",
+          reason: `Image exceeds the ${MAX_IMAGE_BYTES} byte storage limit.`,
+          file_size: file.file_size
+        };
+      }
+      const response = await fetch(`https://api.telegram.org/file/bot${token}/${file.file_path}`, {
         signal: AbortSignal.timeout(25_000)
       });
       if (!response.ok) throw new Error(`Telegram file download failed: HTTP ${response.status}`);
