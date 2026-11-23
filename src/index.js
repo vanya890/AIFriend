@@ -98,43 +98,16 @@ for (const update of updates) {
       post.discussion_chat_id = message.chat.id;
       post.discussion_root_id = message.message_id;
       post.discussion_title = message.chat.title || null;
-      await recordIncoming(message, update.update_id, "channel", "discussion_post_link");
-      appendInbox({
-        update_id: update.update_id,
-        type: "discussion_post_link",
-        channel_id: origin.chat.id,
-        post_id: origin.message_id,
-        discussion_chat_id: message.chat.id,
-        discussion_root_id: message.message_id,
-        text: messageText(message),
-        date: message.date,
-        received_at: new Date().toISOString(),
-        status: "pending"
-      });
+      await recordIncoming(message, update.update_id, "channel", "discussion_post_link", { pending: true });
     } else if (message.chat.type === "private") {
       // Private message bodies and sender metadata must never be committed to
       // the public AIFriend repository. The private branch is the source of truth.
       await recordIncoming(message, update.update_id, "user", "private_message", { pending: true });
       state.private_chats = {};
-      state.inbox = (state.inbox || []).filter(item => item.type !== "private_message");
+      state.inbox = (state.inbox || []).filter(item => !["private_message", "discussion_message", "discussion_post_link"].includes(item.type));
     } else if (message.chat.type === "group" || message.chat.type === "supergroup") {
       const replyId = message.reply_to_message?.message_id || null;
-      await recordIncoming(message, update.update_id, "user", "discussion_message");
-      const entry = {
-        update_id: update.update_id,
-        type: "discussion_message",
-        discussion_chat_id: message.chat.id,
-        message_id: message.message_id,
-        reply_to_message_id: replyId,
-        user_id: message.from.id,
-        username: message.from.username || null,
-        display_name: [message.from.first_name, message.from.last_name].filter(Boolean).join(" "),
-        text: messageText(message),
-        date: message.date,
-        received_at: new Date().toISOString(),
-        status: "pending"
-      };
-      appendInbox(entry);
+      await recordIncoming(message, update.update_id, "user", "discussion_message", { pending: true });
       state.discussions[message.chat.id] ||= { title: message.chat.title || null };
       state.discussions[message.chat.id].last_seen_at = new Date().toISOString();
     }
