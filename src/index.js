@@ -1,5 +1,6 @@
 import { getUpdates } from "./telegram.js";
 import { loadState, saveState, wasProcessed, markProcessed, rememberMessage, createPrivateMessageEntry } from "./memory.js";
+import { saveTelegramImage } from "./media.js";
 
 const state = await loadState();
 const updates = await getUpdates(state.offset);
@@ -35,12 +36,14 @@ for (const update of updates) {
       last_seen_at: new Date().toISOString()
     };
     const key = postKey(chat.id, channelPost.message_id);
+    const media = await saveTelegramImage(channelPost, chat);
     rememberMessage(state, key, {
       type: update.edited_channel_post ? "edited_channel_post" : "channel_post",
       text: messageText(channelPost),
       message_id: channelPost.message_id,
       date: channelPost.date,
-      from: chat.title || chat.username || String(chat.id)
+      from: chat.title || chat.username || String(chat.id),
+      ...(media ? { media } : {})
     });
     appendInbox({
       update_id: update.update_id,
@@ -50,6 +53,7 @@ for (const update of updates) {
       channel_username: chat.username || null,
       post_id: channelPost.message_id,
       text: messageText(channelPost),
+      ...(media ? { media } : {}),
       date: channelPost.date,
       received_at: new Date().toISOString(),
       status: "pending"
