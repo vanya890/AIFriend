@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "offset": 380080401,
+  "offset": 380080403,
   "channels": {},
   "posts": {},
   "discussions": {},
@@ -13,7 +13,9 @@
   },
   "processed_updates": [
     380080399,
-    380080400
+    380080400,
+    380080401,
+    380080402
   ],
   "threads": {}
 }
